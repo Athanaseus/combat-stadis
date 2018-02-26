@@ -136,14 +136,12 @@ def get_src_scale(source_shape):
 def property_results(models, tolerance=0.0001, input='input'):
     results = dict()
     INPUT = input
-    count = 0
     for input_model, output_model in models.items():
         heading = output_model[:-9]
         results[heading] = {'models': [input_model, output_model]}
-        if count == 0:
-            results[heading]['flux'] = []
-            results[heading]['shape'] = []
-            results[heading]['position'] = []
+        results[heading]['flux'] = []
+        results[heading]['shape'] = []
+        results[heading]['position'] = []
         props = get_detected_sources_properties('%s/%s' % (INPUT, input_model),
                                                 '%s/%s' % (INPUT, output_model),
                                                 tolerance)  # TOD0 area to be same as beam
@@ -153,7 +151,6 @@ def property_results(models, tolerance=0.0001, input='input'):
             results[heading]['shape'].append(props[1].items()[i][-1])
         for i in range(len(props[2])):
             results[heading]['position'].append(props[2].items()[i][-1])
-        count += 1
     return results
 
 
