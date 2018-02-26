@@ -157,7 +157,7 @@ def property_results(models, input='input'):
 
 
 def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file,
-                                    area_factor=0.0005):
+                                    area_factor=0.0001):
     """Extracts the output simulation sources properties"""
     model_lsm = Tigger.load(model_lsm_file)
     pybdsm_lsm = Tigger.load(pybdsm_lsm_file)
