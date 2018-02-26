@@ -133,7 +133,7 @@ def get_src_scale(source_shape):
     return scale_out_arc_sec, scale_out_err_arc_sec
 
 
-def property_results(models, input='input'):
+def property_results(models, tolerance=0.0001, input='input'):
     results = dict()
     INPUT = input
     count = 0
@@ -145,7 +145,8 @@ def property_results(models, input='input'):
             results[heading]['shape'] = []
             results[heading]['position'] = []
         props = get_detected_sources_properties('%s/%s' % (INPUT, input_model),
-                                                '%s/%s' % (INPUT, output_model))  # TOD0 area to be same as beam
+                                                '%s/%s' % (INPUT, output_model),
+                                                tolerance)  # TOD0 area to be same as beam
         for i in range(len(props[0])):
             results[heading]['flux'].append(props[0].items()[i][-1])
         for i in range(len(props[1])):
@@ -156,8 +157,7 @@ def property_results(models, input='input'):
     return results
 
 
-def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file,
-                                    area_factor=0.0001):
+def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor):
     """Extracts the output simulation sources properties"""
     model_lsm = Tigger.load(model_lsm_file)
     pybdsm_lsm = Tigger.load(pybdsm_lsm_file)
