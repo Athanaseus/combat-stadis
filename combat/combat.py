@@ -202,15 +202,14 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
             if ra > np.pi:
                 ra -= 2.0*np.pi
             delta_pos_angle = angular_dist_pos_angle(RA, DEC, ra, dec)
-            delta_pos_angle_arc_sec = deg2arcsec(delta_pos_angle[0])
+            delta_pos_angle_arc_sec = rad2arcsec(delta_pos_angle[0])
             delta_phase_centre = angular_dist_pos_angle(RA0, DEC0, ra, dec)
-            delta_phase_centre_arc_sec = deg2arcsec(delta_phase_centre[0])
+            delta_phase_centre_arc_sec = rad2arcsec(delta_phase_centre[0])
             targets_position[name] = [delta_pos_angle_arc_sec,
-                                      deg2arcsec(abs(ra - RA)),
-                                      deg2arcsec(abs(dec - DEC)),
+                                      rad2arcsec(abs(ra - RA)),
+                                      rad2arcsec(abs(dec - DEC)),
                                       delta_phase_centre_arc_sec, I_in,
                                       source_name]
-#            import IPython; IPython.embed()
             try:
                 shape_in = model_source.shape.getShape()
             except AttributeError:
