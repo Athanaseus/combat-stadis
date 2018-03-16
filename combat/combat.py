@@ -12,7 +12,7 @@ MEGA_HERTZ = 1000000.0
 
 def rad2arcsec(x):
     """Converts `x` from radians to arcseconds"""
-    return x*3600.0*180.0/np.pi
+    return float(x)*3600.0*180.0/np.pi
 
 
 def arcsec2deg(x):
@@ -71,22 +71,6 @@ def axis_min_max(data_points, error=None, tolerance=0.0):
                 data_min_max[1]+tolerance]
 
 
-def sky2px(wcs, ra, dec, dra, ddec, cell, beam):
-    """convert a sky region to pixel positions"""
-    # assume every source is at least as large as the psf
-    dra = beam if dra < beam else dra
-    ddec = beam if ddec < beam else ddec
-    offsetDec = int((ddec/2.)/cell)
-    offsetRA = int((dra/2.)/cell)
-    if offsetDec % 2 == 1:
-        offsetDec += 1
-    if offsetRA % 2 == 1:
-        offsetRA += 1
-    raPix, decPix = map(int, wcs.wcs2pix(ra, dec))
-    return np.array([raPix-offsetRA, raPix+offsetRA,
-                    decPix-offsetDec, decPix+offsetDec])
-
-
 def fitsInfo(fitsname=None):
     """Get fits header info"""
     hdu = fitsio.open(fitsname)
@@ -142,9 +126,10 @@ def property_results(models, tolerance=0.0001, input='input'):
         results[heading]['flux'] = []
         results[heading]['shape'] = []
         results[heading]['position'] = []
-        props = get_detected_sources_properties('%s/%s' % (INPUT, input_model),
-                                                '%s/%s' % (INPUT, output_model),
-                                                tolerance)  # TOD0 area to be same as beam
+        props = get_detected_sources_properties(
+                '{:s}/{:s}'.format(INPUT, input_model),
+                '{:s}/{:s}'.format(INPUT, output_model),
+                tolerance)  # TODO area to be same as beam
         for i in range(len(props[0])):
             results[heading]['flux'].append(props[0].items()[i][-1])
         for i in range(len(props[1])):
@@ -224,7 +209,7 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
             targets_scale[name] = [shape_out, shape_out_err, shape_in,
                                    src_scale[0], src_scale[1], I_in,
                                    source_name]
-    print("Number of sources recovered: %d" % len(targets_scale))
+    print("Number of sources recovered: {:d}".format(len(targets_scale)))
     return targets_flux, targets_scale, targets_position
 
 
