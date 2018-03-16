@@ -23,7 +23,7 @@ This package will be soon available on *PYPI*, allowing
 Usage
 =====
 
-The program run entirely in a jupyter-notebook, thus it is aslo a requirement.
+The program run entirely in a jupyter-notebook, thus it is also a requirement.
 
 .. code-block:: bash
   
