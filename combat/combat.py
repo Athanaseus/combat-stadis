@@ -196,7 +196,7 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
                                       delta_phase_centre_arc_sec, I_in,
                                       source_name]
             try:
-                shape_in = model_source.shape.getShape()
+                shape_in = tuple(map(rad2arcsec, model_source.shape.getShape()))
             except AttributeError:
                 shape_in = (0, 0, 0)
             if source.shape:
