@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name="combat-stadis",
-      version="0.0.0",
+      version="0.0.1",
       description="Compare observed and theoretical statistical distibutions",
       author="Athanaseus Ramaila",
       author_email="aramaila@ska.ac.za",
