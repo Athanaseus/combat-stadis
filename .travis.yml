@@ -8,7 +8,6 @@ script:
 - true
 before_install:
 - sudo pip install --upgrade pip
-- sudo pip install --force-reinstall --ignore-installed matplotlib
 deploy:
   provider: pypi
   user: athanaseus
