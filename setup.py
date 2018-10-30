@@ -24,4 +24,4 @@ setup(name="combat-stadis",
       extras_require={'docs': ["sphinx-pypi-upload",
                                "numpydoc",
                                "Sphinx"]},
-      scripts=['aimfast/bin/combat'])
+      scripts=['combat/bin/combat'])
