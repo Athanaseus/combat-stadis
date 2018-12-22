@@ -112,8 +112,8 @@ def get_src_scale(source_shape):
     else:
         scale_out = 0
         scale_out_err = 0
-        scale_out_arc_sec = rad2arcsec(scale_out)
-        scale_out_err_arc_sec = rad2arcsec(scale_out_err)
+    scale_out_arc_sec = rad2arcsec(scale_out)
+    scale_out_err_arc_sec = rad2arcsec(scale_out_err)
     return scale_out_arc_sec, scale_out_err_arc_sec
 
 
