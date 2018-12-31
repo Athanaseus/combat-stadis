@@ -126,6 +126,7 @@ def property_results(models, tolerance=0.0001, input='input'):
         results[heading]['flux'] = []
         results[heading]['shape'] = []
         results[heading]['position'] = []
+        results[heading]['spi'] = []
         props = get_detected_sources_properties(
                 '{:s}/{:s}'.format(INPUT, input_model),
                 '{:s}/{:s}'.format(INPUT, output_model),
@@ -136,6 +137,8 @@ def property_results(models, tolerance=0.0001, input='input'):
             results[heading]['shape'].append(props[1].items()[i][-1])
         for i in range(len(props[2])):
             results[heading]['position'].append(props[2].items()[i][-1])
+        for i in range(len(props[3])):
+            results[heading]['spi'].append(props[3].items()[i][-1])
     return results
 
 
@@ -154,6 +157,7 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
     #                 (majx_in, min_in, pos_angle_in),
     #                 scale_out, scale_out_err, I_in]
     targets_scale = dict()         # recovered sources scale
+    targets_spi = dict()
     for model_source in model_sources:
         I_out = 0.0
         I_out_err = 0.0
@@ -161,6 +165,7 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
         RA = model_source.pos.ra
         DEC = model_source.pos.dec
         I_in = model_source.flux.I
+        spi_in = model_source.spectrum.spi
         sources = pybdsm_lsm.getSourcesNear(RA, DEC, area_factor)
         # More than one source detected, thus we sum up all the detected sources
         # within a radius equal to the beam size in radians around the true target
@@ -195,6 +200,13 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
                                       rad2arcsec(abs(dec - DEC)),
                                       delta_phase_centre_arc_sec, I_in,
                                       source_name]
+            if source.spectrum:
+                spi_out = source.spectrum.spi
+                spi_out_err = source.getTags()[0][-1]
+                targets_spi[name] = [spi_out, spi_out_err, spi_in,
+                                     delta_phase_centre_arc_sec, I_out,
+                                     source_name]
+
             try:
                 shape_in = tuple(map(rad2arcsec, model_source.shape.getShape()))
             except AttributeError:
@@ -210,7 +222,7 @@ def get_detected_sources_properties(model_lsm_file, pybdsm_lsm_file, area_factor
                                    src_scale[0], src_scale[1], I_in,
                                    source_name]
     print("Number of sources recovered: {:d}".format(len(targets_scale)))
-    return targets_flux, targets_scale, targets_position
+    return targets_flux, targets_scale, targets_position, targets_spi
 
 
 def get_ra_dec_range(area=1.0, phase_centre="J2000,0deg,-30deg"):
