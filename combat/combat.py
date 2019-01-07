@@ -234,3 +234,68 @@ def get_ra_dec_range(area=1.0, phase_centre="J2000,0deg,-30deg"):
     ra_range = [ra-d_ra, ra+d_ra]
     dec_range = [dec-d_dec, dec+d_dec]
     return ra_range, dec_range
+
+
+def noise_sigma(noise_image):
+    """Determines the noise sigma level in a dirty image with no source"""
+    # Read the simulated noise image
+    dirty_noise_hdu = fitsio.open(noise_image)
+    # Get the header data unit for the simulated noise
+    dirty_noise_data = dirty_noise_hdu[0].data
+    # Get the noise sigma
+    dirty_noise_data_std = dirty_noise_data.std()
+    return dirty_noise_data_std
+
+
+def source_noise_ratio(skymodel, res_images, noise_image):
+    results = dict()
+    beam = (20.0/3600, 20.0/3600, 0)
+    noise_sig = noise_sigma(noise_image)
+    model_lsm = Tigger.load(skymodel)
+    model_sources = model_lsm.sources
+    noise_hdu = fitsio.open(noise_image)
+    noise_data = noise_hdu[0].data
+    rad = lambda a: a*(180/np.pi) # convert radians to degrees
+    for image in res_images:
+        imager = image.split('_')[2].split('-')[0]
+        results[imager] = []
+        residual_hdu = fitsio.open(image)
+        # Get the header data unit for the residual rms
+        residual_data = residual_hdu[0].data
+        res_header = residual_hdu[0].header
+        nchan = (residual_data.shape[1] if residual_data.shape[0] == 1
+                 else residual_data.shape[0])
+        for model_source in model_sources:
+            src  = model_source
+            RA = rad(model_source.pos.ra)
+            DEC = rad(model_source.pos.dec)
+            # Cater for point sources and assume source extent equal to the
+            # Gaussian major axis along both ra and dec axis
+            dra = rad(src.shape.ex) if src.shape  else beam[0]
+            ddec = rad(src.shape.ey) if src.shape  else beam[1]
+            pa = rad(src.shape.pa) if src.shape  else beam[2]
+            emin, emaj = sorted([dra, ddec])
+            fits_info = fitsInfo(image)
+            rgn = sky2px(fits_info["wcs"],RA,DEC,dra,ddec,fits_info["dra"], beam[1])
+            imslice = slice(rgn[2], rgn[3]), slice(rgn[0], rgn[1])
+            noise_area = noise_data[0,0,:,:][imslice]
+            noise_rms = noise_area.std()
+            # if image is cube then average along freq axis
+            flux_std = 0.0
+            flux_mean = 0.0
+            for frq_ax in range(nchan):
+                if residual_data.shape[0] == 1:
+                    target_area = residual_data[0,frq_ax,:,:][imslice]
+                else:
+                    target_area = residual_data[frq_ax,0,:,:][imslice]
+                flux_std += target_area.std()
+                flux_mean += target_area.mean()
+                if frq_ax == nchan - 1:
+                    flux_std = flux_std/float(nchan)
+                    flux_mean = flux_mean/float(nchan)
+            results[imager].append([model_source.name, src.flux.I, flux_std,
+                                    noise_rms, flux_std/noise_rms,
+                                    src.flux.I/flux_std,
+                                    src.flux.I/noise_sig, flux_mean,
+                                    flux_mean/noise_rms])
+    return results
