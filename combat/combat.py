@@ -82,7 +82,10 @@ def fitsInfo(fitsname=None):
     ddec = abs(hdr['CDELT2'])
     decPix = hdr['CRPIX2']
     wcs = WCS(hdr, mode='pyfits')
-    beam_size = (hdr['BMAJ'], hdr['BMIN'], hdr['BPA'])
+    try:
+        beam_size = (hdr['BMAJ'], hdr['BMIN'], hdr['BPA'])
+    except KeyError:
+        beam_size = (5.5, 5.5, 5.5)
     return {'wcs': wcs, 'ra': ra, 'dec': dec,
             'dra': dra, 'ddec': ddec, 'raPix': raPix,
             'decPix': decPix, "beam_size": beam_size}
@@ -263,19 +266,19 @@ def sky2px(wcs, ra, dec, dra, ddec, cell, beam):
                     decPix-offsetDec, decPix+offsetDec])
 
 
-def source_noise_ratio(skymodel, res_images, noise_image):
+def source_noise_ratio(skymodel, res_noise_images, directory='.'):
     results = dict()
     beam = (20.0/3600, 20.0/3600, 0)
-    noise_sig = noise_sigma(noise_image)
-    model_lsm = Tigger.load(skymodel)
+    model_lsm = Tigger.load("{:s}/{:s}".format(directory, skymodel))
     model_sources = model_lsm.sources
-    noise_hdu = fitsio.open(noise_image)
-    noise_data = noise_hdu[0].data
-    rad = lambda a: a*(180/np.pi) # convert radians to degrees
-    for image in res_images:
+    rad = lambda a: a*(180/np.pi)  # convert radians to degrees
+    for image, noise in res_noise_images.items():
+        noise_sig = noise_sigma("{:s}/{:s}".format(directory, noise))
+        noise_hdu = fitsio.open("{:s}/{:s}".format(directory, noise))
+        noise_data = noise_hdu[0].data
         imager = image.split('_')[2].split('-')[0]
         results[imager] = []
-        residual_hdu = fitsio.open(image)
+        residual_hdu = fitsio.open("{:s}/{:s}".format(directory, image))
         # Get the header data unit for the residual rms
         residual_data = residual_hdu[0].data
         res_header = residual_hdu[0].header
@@ -287,11 +290,11 @@ def source_noise_ratio(skymodel, res_images, noise_image):
             DEC = rad(model_source.pos.dec)
             # Cater for point sources and assume source extent equal to the
             # Gaussian major axis along both ra and dec axis
-            dra = rad(src.shape.ex) if src.shape  else beam[0]
-            ddec = rad(src.shape.ey) if src.shape  else beam[1]
-            pa = rad(src.shape.pa) if src.shape  else beam[2]
+            dra = rad(src.shape.ex) if src.shape else beam[0]
+            ddec = rad(src.shape.ey) if src.shape else beam[1]
+            pa = rad(src.shape.pa) if src.shape else beam[2]
             emin, emaj = sorted([dra, ddec])
-            fits_info = fitsInfo(image)
+            fits_info = fitsInfo("{:s}/{:s}".format(directory, image))
             rgn = sky2px(fits_info["wcs"],RA,DEC,dra,ddec,fits_info["dra"], beam[1])
             imslice = slice(rgn[2], rgn[3]), slice(rgn[0], rgn[1])
             noise_area = noise_data[0,0,:,:][imslice]
