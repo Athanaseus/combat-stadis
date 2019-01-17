@@ -72,7 +72,21 @@ def axis_min_max(data_points, error=None, tolerance=0.0):
 
 
 def fitsInfo(fitsname=None):
-    """Get fits header info"""
+    """Get fits header info.
+    Parameters
+    ----------
+    fitsname : fits file
+        Restored image (cube)
+    Returns
+    -------
+    fitsinfo : dict
+        Dictionary of fits information
+        e.g. {'wcs': wcs, 'ra': ra, 'dec': dec,
+        'dra': dra, 'ddec': ddec, 'raPix': raPix,
+        'decPix': decPix,  'b_size': beam_size,
+        'numPix': numPix, 'centre': centre,
+        'skyArea': skyArea}
+    """
     hdu = fitsio.open(fitsname)
     hdr = hdu[0].header
     ra = hdr['CRVAL1']
@@ -82,13 +96,24 @@ def fitsInfo(fitsname=None):
     ddec = abs(hdr['CDELT2'])
     decPix = hdr['CRPIX2']
     wcs = WCS(hdr, mode='pyfits')
+    numPix = hdr['NAXIS1']
     try:
         beam_size = (hdr['BMAJ'], hdr['BMIN'], hdr['BPA'])
-    except KeyError:
-        beam_size = (5.5, 5.5, 5.5)
-    return {'wcs': wcs, 'ra': ra, 'dec': dec,
-            'dra': dra, 'ddec': ddec, 'raPix': raPix,
-            'decPix': decPix, "beam_size": beam_size}
+    except:
+        beam_size = None
+    try:
+        centre = '{0},{1},{2}'.format('J'+str(hdr['EQUINOX']),
+                                      str(hdr['CRVAL1'])+hdr['CUNIT1'],
+                                      str(hdr['CRVAL2'])+hdr['CUNIT2'])
+    except:
+        centre = 'J2000.0,0.0deg,-30.0deg'
+    skyArea = (numPix*ddec)**2
+    fitsinfo = {'wcs': wcs, 'ra': ra, 'dec': dec,
+                'dra': dra, 'ddec': ddec, 'raPix': raPix,
+                'decPix': decPix,  'b_size': beam_size,
+                'numPix': numPix, 'centre': centre,
+                'skyArea': skyArea}
+    return fitsinfo
 
 
 def get_src_scale(source_shape):
@@ -317,4 +342,100 @@ def source_noise_ratio(skymodel, res_noise_images, directory='.'):
                                     src.flux.I/flux_std,
                                     src.flux.I/noise_sig, flux_mean,
                                     flux_mean/noise_rms])
+    return results
+
+
+def get_random_pixel_coord(num, sky_area=1, phase_centre="J2000,0deg,-30deg"):
+    """Provide random pixel coordinates"""
+    import random
+    ra_range, dec_range = get_ra_dec_range(sky_area, phase_centre)
+    COORDs = []
+    for i in range(num):
+        current = []
+        # add another number to the current list
+        current.append(random.uniform(ra_range[0], ra_range[1]))
+        current.append(random.uniform(dec_range[0], dec_range[1]))
+        # convert current list into a tuple and add to resulting list
+        COORDs.append(tuple(current))
+    random.shuffle(COORDs)
+    return COORDs
+
+
+def get_box(wcs, radec, w):
+    """Get box of width w around source coordinates radec
+
+    Parameters
+    ----------
+    radec: tuple
+        RA and DEC in degrees
+    w: int
+        width of box
+    wcs: astLib.astWCS.WCS ins
+        World Coordinate System
+
+    Returns
+    -------
+    box: tuple
+        A box centered at radec
+    """
+    raPix, decPix = wcs.wcs2pix(*radec)
+    raPix = int(raPix)
+    decPix = int(decPix)
+    box = slice(decPix-w/2, decPix+w/2), slice(raPix-w/2, raPix+w/2)
+    return box
+
+
+def random_res_noise_ratio(res_noise_images, num_pix, directory='.',
+                           area_factor=2.0, pix_size=1.0, num_areas=100):
+    beam_deg = (0.00151582804885738, 0.00128031965017612, 20.0197348935424)
+    results = dict()
+    pix_coord_deg = get_random_pixel_coord(num_areas, sky_area=1.0)
+    for res_image, noise_image in res_noise_images.items():
+        noise_hdu = fitsio.open('{:s}/{:s}'.format(directory, noise_image))
+        noise_data = noise_hdu[0].data
+        results[res_image] = []
+        residual_hdu = fitsio.open('{:s}/{:s}'.format(directory, res_image))
+        # Get the header data unit for the residual rms
+        residual_data = residual_hdu[0].data
+        nchan = (residual_data.shape[1] if residual_data.shape[0] == 1
+                 else residual_data.shape[0])
+        fits_info = fitsInfo('{:s}/{:s}'.format(directory, res_image))
+        beam_deg = fits_info['b_size'] if fits_info['b_size'] else beam_deg
+        label = res_image[:-5]
+        i = 0  # Source counter
+        for RA, DEC in pix_coord_deg:
+            i += 1
+            # Get width of box around source
+            width = int(deg2arcsec(beam_deg[0])*area_factor)
+            # Get a image slice around source
+            imslice = get_box(fits_info["wcs"], (RA, DEC), width)
+            # Get noise rms in the box around source
+            noise_area = noise_data[0, 0, :, :][imslice]
+            noise_rms = noise_area.std()
+            # if image is cube then average along freq axis
+            flux_std = 0.0
+            flux_mean = 0.0
+            for frq_ax in range(nchan):
+                # In case the first two axes are swapped
+                if residual_data.shape[0] == 1:
+                    target_area = residual_data[0, frq_ax, :, :][imslice]
+                else:
+                    target_area = residual_data[frq_ax, 0, :, :][imslice]
+                # Sum of all the fluxes
+                flux_std += target_area.std()
+                flux_mean += target_area.mean()
+            # Get the average std and mean along all frequency channels
+            flux_std = flux_std/float(nchan)
+            flux_mean = flux_mean/float(nchan)
+            # Get phase centre and determine phase centre distance
+            RA0 = float(fits_info['centre'].split(',')[1].split('deg')[0])
+            DEC0 = float(fits_info['centre'].split(',')[-1].split('deg')[0])
+            phase_dist_arcsec = deg2arcsec(np.sqrt((RA-RA0)**2 + (DEC-DEC0)**2))
+            # Store all outputs in the results data structure
+            results[res_image].append([noise_rms,
+                                   flux_std,
+                                   flux_std/noise_rms,
+                                   phase_dist_arcsec, 'source{0}'.format(i),
+                                   flux_mean,
+                                   flux_mean/noise_rms])
     return results
