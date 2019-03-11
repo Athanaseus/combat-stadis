@@ -1,7 +1,7 @@
 =============
 combat-stadis
 =============
-COMpare oBservations And Theoretical Statistcal Distributions
+COMpare oBservations And Theoretical Statistical Distributions
 
 ============
 Installation
